@@ -972,10 +972,10 @@ impl ValBuilder {
             (_, ValNode::Const(c)) => {
                 let new = (c << (size.start_byte() * 8)) & mask;
                 let inverted_mask = self.imm(!mask);
-                let old = self.binop(BinOp::And, [ old, inverted_mask ]);
+                let old = self.binop(BinOp::And, [old, inverted_mask]);
                 let new = self.imm(new);
-                return self.binop(BinOp::Or, [ old, new ])
-            }
+                return self.binop(BinOp::Or, [old, new])
+            },
             // Inner blend only replaces values that we will also update, so we can eliminate the inner blend.
             (
                 ValNode::Blend {
@@ -1096,7 +1096,7 @@ impl ValBuilder {
     }
 
     /// Does not perform any shifting of the new value.
-    pub fn combine_old_and_new_mask(&mut self, old: ValId, mut new: ValId, mask: u128) -> ValId {
+    pub fn combine_old_and_new_mask(&mut self, old: ValId, new: ValId, mask: u128) -> ValId {
         // TODO: Implement these
         match (self.value_tree[old.index()], self.value_tree[new.index()]) {
             // (ValNode::Extract { val, skip, take }, _) if (!mask) & bitmask_u128(take as u32) == 0 => {

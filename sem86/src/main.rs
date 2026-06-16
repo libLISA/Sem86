@@ -410,16 +410,9 @@ fn main() {
                                 0,
                                 Some(if path.exists() {
                                     DiskData::new(if args.ide_0_0_writable {
-                                        Box::new(FileDiskData::new(
-                                            File::options()
-                                                .write(true)
-                                                .read(true)
-                                                .open(path).unwrap(),
-                                        ))
+                                        Box::new(FileDiskData::new(File::options().write(true).read(true).open(path).unwrap()))
                                     } else {
-                                        Box::new(CowDiskData::new(Box::new(FileDiskData::new(
-                                            File::open(path).unwrap(),
-                                        ))))
+                                        Box::new(CowDiskData::new(Box::new(FileDiskData::new(File::open(path).unwrap()))))
                                     })
                                 } else {
                                     panic!("{path:?} does not exist");

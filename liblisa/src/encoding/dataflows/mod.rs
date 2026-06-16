@@ -1,23 +1,18 @@
 //! Types representing the dataflows in an [`Encoding`](super::Encoding).
 
-use std::collections::HashMap;
 use std::fmt::Debug;
-use std::iter::once;
 use std::ops::{Index, IndexMut};
 
 use bitcode::{Decode, Encode};
 use itertools::Itertools;
-use log::trace;
 use serde::{Deserialize, Serialize};
 
 use crate::arch::{Arch, Register};
 use crate::encoding::UnsizedParLoc;
 use crate::encoding::bitpattern::{FlowInputLocation, FlowOutputLocation, FlowValueLocation};
 use crate::instr::Instruction;
-use crate::semantics::{ARG_NAMES, Computation};
-use crate::state::{Size, SystemState, UnsizedLoc};
-use crate::utils::bitmap::{Bitmap, FixedBitmapU64};
-use crate::value::{OwnedValue, Value};
+use crate::semantics::Computation;
+use crate::utils::bitmap::Bitmap;
 
 mod accesses;
 mod address_computation;

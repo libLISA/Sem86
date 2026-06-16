@@ -2,7 +2,6 @@ use std::cmp::Reverse;
 use std::io::Write;
 use std::iter::repeat_n;
 use std::mem::{MaybeUninit, offset_of};
-use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -47,7 +46,6 @@ use crate::il::{EfficientSystemState, ExecResult};
 use crate::system::{
     CachedDescriptorAccessRights, Cr0, Cr4, Db, Descriptor, DescriptorInfo, GateDescriptor, GateType, SegmentSelector, Tss,
 };
-use crate::tests::TestDbWriter;
 use crate::time::SynchronousClock;
 use crate::tracefile::{TraceEntry, TraceEntryReader};
 use crate::util::miniprofiler::{EncodeU64, Profiler};

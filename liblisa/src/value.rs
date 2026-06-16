@@ -15,7 +15,7 @@ use std::hash::Hash;
 use serde::{Deserialize, Serialize};
 
 use crate::state::Size;
-use crate::utils::{bitmask_u64, switch_endianness_u64};
+use crate::utils::bitmask_u64;
 
 /// A value that stores its byte data as a `Vec<u8>`.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

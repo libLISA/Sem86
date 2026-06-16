@@ -1,7 +1,6 @@
 //! Address computations.
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 
 use arrayvec::ArrayVec;
@@ -13,7 +12,7 @@ use crate::arch::{Arch, CpuState};
 use crate::encoding::UnsizedParLoc;
 use crate::encoding::dataflows::Inputs;
 use crate::semantics::ARG_NAMES;
-use crate::state::{Addr, SystemState, UnsizedLoc};
+use crate::state::{Addr, SystemState};
 use crate::value::Value;
 
 /// An address computation of a memory access.

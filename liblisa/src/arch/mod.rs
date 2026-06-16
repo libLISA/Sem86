@@ -15,12 +15,7 @@ use bitcode::{DecodeOwned, Encode};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::encoding::dataflows::{
-    AccessKind, AddrSize, AddressComputation, Inputs, MemoryAccess, MemorySizeRange, ParameterizedComputation,
-};
-use crate::encoding::{ParLoc, UnsizedParLoc};
-use crate::state::{Addr, Size, SystemState};
-use crate::utils::bitmask_u64;
+use crate::encoding::dataflows::AddrSize;
 use crate::value::{MutValue, Value, ValueType};
 
 /// Represents a CPU architecture.

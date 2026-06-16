@@ -1,6 +1,6 @@
 use core::panic;
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use std::ops::{Index, IndexMut};
@@ -8,13 +8,13 @@ use std::ops::{Index, IndexMut};
 use arrayvec::ArrayVec;
 use bitcode::{Decode, Encode};
 use itertools::Itertools;
-use log::{debug, trace};
+use log::trace;
 use serde::{Deserialize, Serialize};
 
 use crate::Instruction;
 use crate::instr::map::partition::Partitions;
 use crate::instr::map::traits;
-use crate::utils::bitmap::{Bitmap, FixedBitmapU64, GrowingBitmap};
+use crate::utils::bitmap::{Bitmap, GrowingBitmap};
 
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[derive(Clone, Serialize, Deserialize, Encode, Decode, PartialEq, Eq, PartialOrd, Ord, Hash)]
