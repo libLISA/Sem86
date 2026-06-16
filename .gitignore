@@ -1,0 +1,12 @@
+/target
+/*.semantics
+/disks
+/traces
+/logs
+/snapshots
+/capture.png
+.gdb_history
+perf.data
+perf.data.old
+.tmp.*
+*.tmp

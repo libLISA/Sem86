@@ -1,0 +1,1 @@
+- The `VGA-ROM` fonts are from the `fntcol16` collection. They are public domain. (https://github.com/dokkaebi-project/font-archive)

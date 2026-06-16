@@ -1,0 +1,2 @@
+- The `VGABIOS` ROMs are sourced from Bochs, licensed under the LGPL.
+- The `BIOS-bochs-latest` ROM is sourced from Bochs, licensed under the LGPL.

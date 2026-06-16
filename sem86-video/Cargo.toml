@@ -1,0 +1,15 @@
+[package]
+name = "sem86-video"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+liblisa = { path = "../liblisa", default-features = false }
+anyhow = "1.0"
+bytemuck = { version = "1.16", features = [ "derive" ] }
+sem86-arch = { path = "../sem86-arch/" }
+log = "0.4"
+wgpu = "27.0.1"
+winit = { version = "0.30", features = ["rwh_06"] }
+sem86-core = { path = "../sem86-core" }
+bilge = "0.2.0"

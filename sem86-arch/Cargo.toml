@@ -1,0 +1,23 @@
+[package]
+name = "sem86-arch"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+liblisa = { path = "../liblisa", default-features = false }
+serde = { version = "1.0.217", features = ["derive"] }
+log = "0.4.21"
+nix = { version = "0.30.1", features = ["mman", "signal", "fs"] }
+rangemap = "1.5.1"
+bilge = "0.2.0"
+bitcode = "0.6.9"
+bytemuck = { version = "1.16", features = [ "latest_stable_rust" ] }
+mem_dbg = "0.3.2"
+
+[dev-dependencies]
+criterion = "0.5"
+test-log = "0.2.10"
+
+[[bench]]
+name = "memory"
+harness = false

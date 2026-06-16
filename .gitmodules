@@ -1,0 +1,3 @@
+[submodule "custom-llvm-build/llvm-source"]
+	path = custom-llvm-build/llvm-source
+	url = https://github.com/llvm/llvm-project

@@ -1,0 +1,7 @@
+[package]
+name = "custom-llvm-build"
+version = "0.1.0"
+edition = "2024"
+links = "LLVM"
+
+[dependencies]

@@ -1,0 +1,49 @@
+[package]
+name = "liblisa"
+version = "0.3.0"
+edition = "2024"
+description = "A tool for automated discovery and analysis of the ISA of a CPU."
+license = "AGPL-3.0-only"
+documentation = "https://docs.liblisa.nl/"
+homepage = "https://liblisa.nl/"
+
+[features]
+default = [ "z3", "x64-undef", "pot", "lz4", "time" ]
+x64-undef = [ "dep:rusty-xed" ]
+pot = [ "dep:pot" ]
+lz4 = [ "dep:lz4_flex" ]
+time = []
+
+[dependencies]
+thiserror = "1"
+serde = { version = "1.0", features = [ "derive" ] }
+rand = "0.9"
+itertools = "0.12.0"
+log = "0.4"
+hex = "0.4"
+arrayvec = { version = "0.7", features = [ "serde" ] }
+hashbrown = "0.14.3"
+bitcode = { version = "0.6.9", features = [ "arrayvec" ] }
+schemars = { version = "0.8.16", features = ["arrayvec07"], optional = true }
+mem_dbg = { version = "0.3.2", optional = true }
+rayon = "1.5"
+fxhash = "0.2.1"
+sha1 = "0.10.6"
+arbitrary = { version = "1", features = ["derive"] }
+z3 = { version = "0.13.3", optional = true }
+rustc_apfloat = "0.2.3"
+rusty-xed = { version = "0.1.1", optional = true }
+typed-arena = "2.0.2"
+serde_json = "1.0"
+pot = { version = "3.0.1", optional = true }
+lz4_flex = { version = "0.11", features = ["frame"], default-features = false, optional = true }
+
+[dev-dependencies]
+env_logger = "0.10"
+test-log = "0.2.10"
+serde_json = "1.0"
+criterion = "0.5"
+rand_xoshiro = "0.7"
+memoffset = "0.9.1"
+clap = { version = "4.4.8", features = ["derive"] }
+xz2 = "0.1.7"

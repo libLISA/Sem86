@@ -1,0 +1,100 @@
+[package]
+name = "sem86-core"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+synchronous-clock = []
+mem-trace = []
+profiler = []
+default = []
+
+[dependencies]
+liblisa = { path = "../liblisa", default-features = false, features = ["mem_dbg"] }
+sem86-arch = { path = "../sem86-arch/" }
+softfloat = { path = "../softfloat" }
+itertools = "0.14.0"
+serde = { version = "1.0.217", features = ["derive"] }
+log = "0.4.21"
+jiff = "0.1.21"
+arrayvec = "0.7.6"
+bilge = "0.2.0"
+arbitrary-int = "1.3.0"
+bytemuck = { version = "1.16", features = [ "latest_stable_rust" ] }
+md5 = "0.7"
+pot = "3.0.1"
+num-derive = "0.4"
+num-traits = "0.2"
+fxhash = "0.2.1"
+cranelift = "0.122.0"
+cranelift-module = "0.122.0"
+cranelift-jit = "0.122.0"
+cranelift-native = "0.122.0"
+bitcode = "0.6.9"
+strum = { version = "0.27.2", features = ["derive", "strum_macros"] }
+serde_json = "1.0.134"
+lz4_flex = { git = "https://github.com/jxors/lz4_flex", branch = "snapshot", version = "0.12", features = ["frame"], default-features = false }
+cpal = "0.16.0"
+rand = "0.9"
+crossbeam-channel = "0.5.15"
+sha2 = "0.10.9"
+generativity = "1.1.0"
+serde-big-array = "0.5.1"
+nix = { version = "0.30.1", features = ["mman"] }
+inkwell = { version = "0.7.0", features = [ "llvm20-1" ] }
+thin-vec = "0.2.14"
+typetag = "0.2.21"
+smoltcp = { version = "0.12.0", path = "../../smoltcp" }
+mio = { version = "1.0.2", features = ["os-poll", "net"] }
+slab = "0.4"
+buffer-redux = { version = "1.0.2", features = ["slice-deque"]}
+indexmap = "2.12.1"
+mem_dbg = "0.3.2"
+rand_xoshiro = "0.7"
+elf = "0.8.0"
+hex = "0.4.3"
+
+# Custom LLVM build for Android
+[target.'cfg(target_os = "android")'.dependencies]
+custom-llvm-build = { path = "../custom-llvm-build" }
+
+# Don't link LLVM/libffi for Android, because we're building it ourselves.
+[target.'cfg(target_os = "android")'.dependencies.llvm-sys]
+version = "201"
+features = ["no-llvm-linking"]
+
+[target.'cfg(target_os = "android")'.dependencies.inkwell]
+version = "0.7.0"
+features = ["llvm20-1", "no-libffi-linking"]
+
+[dev-dependencies]
+criterion = "0.5"
+test-log = "0.2.10"
+rand_xoshiro = "0.7"
+
+[[bench]]
+name = "memory"
+harness = false
+
+[[bench]]
+name = "icache"
+harness = false
+
+[[bench]]
+name = "exec"
+harness = false
+
+[[bench]]
+name = "mir"
+harness = false
+
+[[bench]]
+name = "branch-prediction"
+harness = false
+
+[[bench]]
+name = "full-system"
+harness = false
+
+
+
