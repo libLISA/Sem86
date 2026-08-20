@@ -488,8 +488,9 @@ impl<'ctx> InkwellBackend<'ctx> {
         let g = FunctionGenerator::new(self.context, &mut module, &mut ftable, &name);
         g.codegen_inner(lir, false, false);
 
+        #[cfg(debug_assertions)]
         if log_enabled!(Level::Info) {
-            // info!("IR: {}", module.print_to_string().to_string());
+            info!("IR: {}", module.print_to_string().to_string());
         }
 
         let target_triple = TargetMachine::get_default_triple();
@@ -583,28 +584,6 @@ impl<'ctx> InkwellBackend<'ctx> {
 
     pub fn codegen_lir(&mut self, _lir: &Lir) -> Result<InkwellFunction, InkwellError> {
         unimplemented!("Use one of the methods that generates an Object instead")
-    }
-}
-
-struct LazySlot<'ctx> {
-    context: &'ctx Context,
-    slot: Option<PointerValue<'ctx>>,
-}
-
-impl<'ctx> LazySlot<'ctx> {
-    pub fn new(context: &'ctx Context) -> Self {
-        Self {
-            context,
-            slot: None,
-        }
-    }
-
-    pub fn get(&mut self, builder: &Builder<'ctx>) -> PointerValue<'ctx> {
-        *self.slot.get_or_insert_with(|| {
-            let slot = builder.build_alloca(self.context.i128_type(), "u128_return").unwrap();
-            slot.as_instruction().unwrap().set_alignment(16).unwrap();
-            slot
-        })
     }
 }
 
@@ -733,7 +712,19 @@ impl<'ctx, 'r> FunctionGenerator<'ctx, 'r> {
         };
 
         // local stack slots (alloca)
-        let mut u128_return_val_slot = LazySlot::new(self.context);
+        let need_u128_return = lir.blocks.iter().any(|block| {
+            block
+                .operations()
+                .iter()
+                .any(|op| matches!(op, LirOp::ReadMemory { num_bytes } if ![1, 2, 4].contains(&num_bytes)))
+        });
+        let u128_return_val_slot = if need_u128_return {
+            let slot = builder.build_alloca(self.context.i128_type(), "u128_return").unwrap();
+            slot.as_instruction().unwrap().set_alignment(16).unwrap();
+            Some(slot)
+        } else {
+            None
+        };
 
         let is_userspace = self.is_userspace(param_cpu_state);
 
@@ -1682,9 +1673,8 @@ impl<'ctx, 'r> FunctionGenerator<'ctx, 'r> {
 
                             builder.build_unconditional_branch(read_done_block).unwrap();
                             builder.position_at_end(slow_read_block);
-                            let slot = u128_return_val_slot.get(builder);
                             let (slow_ok, slow_loaded) =
-                                self.emit_slow_memory_read(param_ctx, Some(slot), is_userspace, num_bytes, addr);
+                                self.emit_slow_memory_read(param_ctx, &u128_return_val_slot, is_userspace, num_bytes, addr);
 
                             let builder = &self.builder;
                             builder.build_unconditional_branch(read_done_block).unwrap();
@@ -1711,9 +1701,8 @@ impl<'ctx, 'r> FunctionGenerator<'ctx, 'r> {
                             stack.push(Unmaterialized::new(ok));
                             stack.push(Unmaterialized::new(loaded));
                         } else {
-                            let slot = u128_return_val_slot.get(builder);
                             let (slow_ok, slow_loaded) =
-                                self.emit_slow_memory_read(param_ctx, Some(slot), is_userspace, num_bytes, addr);
+                                self.emit_slow_memory_read(param_ctx, &u128_return_val_slot, is_userspace, num_bytes, addr);
                             stack.push(Unmaterialized::new(slow_ok));
                             stack.push(Unmaterialized::new(slow_loaded));
                         }
@@ -2483,8 +2472,8 @@ impl<'ctx, 'r> FunctionGenerator<'ctx, 'r> {
     }
 
     fn emit_slow_memory_read(
-        &mut self, param_ctx: PointerValue<'ctx>, u128_return_val_slot: Option<PointerValue<'ctx>>, is_userspace: IntValue<'ctx>,
-        num_bytes: u8, addr: IntValue<'ctx>,
+        &mut self, param_ctx: PointerValue<'ctx>, u128_return_val_slot: &Option<PointerValue<'ctx>>,
+        is_userspace: IntValue<'ctx>, num_bytes: u8, addr: IntValue<'ctx>,
     ) -> (IntValue<'ctx>, IntValue<'ctx>) {
         match num_bytes {
             1 => {
