@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::fmt::Display;
-use std::sync::Arc;
+use std::sync::mpsc::{Sender, channel};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
@@ -49,6 +50,37 @@ pub struct PerformanceMonitor {
     state: Arc<State>,
 }
 
+/// Channel over which `Arc<State>` can be sent.
+/// Once sent, `should_print` will be set to true every 5 seconds,
+/// until `running` is set to false.
+/// 
+/// This single background thread is responsible for ticking all
+/// running timers in the process.
+/// This avoids the overhead of thread spawning in `PerformanceMonitor::new`.
+static TIMER_CHANNEL: LazyLock<Arc<Sender<Arc<State>>>> = LazyLock::new(|| {
+    let (send, recv) = channel();
+    std::thread::Builder::new()
+        .name("perf-timer".into())
+        .spawn(move || {
+            let mut states = Vec::new();
+            loop {
+                while let Ok(state) = recv.try_recv() {
+                    states.push(state);
+                }
+
+                states.retain(|state: &Arc<State>| {
+                    state.should_print.fetch_or(true, Ordering::Relaxed);
+                    state.running.load(Ordering::Relaxed)
+                });
+
+                std::thread::sleep(Duration::from_secs(5));
+            }
+        })
+        .unwrap();
+
+    Arc::new(send)
+});
+
 impl PerformanceMonitor {
     pub fn new(k: u64) -> Self {
         let state = Arc::new(State {
@@ -56,16 +88,7 @@ impl PerformanceMonitor {
             should_print: AtomicBool::new(false),
         });
 
-        let state_copy = state.clone();
-        std::thread::Builder::new()
-            .name("perf-timer".into())
-            .spawn(move || {
-                while state_copy.running.load(Ordering::Relaxed) {
-                    state_copy.should_print.fetch_or(true, Ordering::Relaxed);
-                    std::thread::sleep(Duration::from_secs(5));
-                }
-            })
-            .unwrap();
+        TIMER_CHANNEL.send(state.clone());
 
         Self {
             last_k: k,
