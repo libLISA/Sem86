@@ -142,7 +142,7 @@ impl UserspaceNat {
             // ARP
             addrs.push(local_network).unwrap();
 
-            // ?? Does this forward packets to the internet?
+            // Seems to be necessary to make smoltcp open sockets for internet addresses
             addrs.push(IpCidr::new(internet_ip.into(), 0)).unwrap();
         });
 
@@ -395,13 +395,30 @@ impl<F: FnMut()> Runner<F> {
 
             while let Ok(packet) = self.tx_receiver.try_recv() {
                 self.inspect_packet_for_nat(&packet);
-                self.device.incoming_packets.push_back(packet);
+
+                let mut drop_packet = false;
+                if let Ok(eth) = EthernetFrame::new_checked(packet.data())
+                    && let EthernetProtocol::Arp = eth.ethertype()
+                    && let Ok(arp) = smoltcp::wire::ArpPacket::new_checked(eth.payload())
+                    && let smoltcp::wire::ArpOperation::Request = arp.operation()
+                    && let &[a, b, c, d] = arp.target_protocol_addr()
+                    // If the guest is asking for an IP in the local subnet
+                    && let target_ip = std::net::Ipv4Addr::new(a, b, c, d)
+                    && self.local_network.contains_addr(&target_ip.into())
+                    && let smoltcp::wire::IpAddress::Ipv4(gw) = self.local_network.address()
+                    // But it's NOT asking for the gateway itself...
+                    && target_ip != gw
+                {
+                    // Avoid having smoltcp respond to ARP requests for any hosts except itself
+                    // This negates the effects of any_ip = true for ARP requests.
+                } else {
+                    self.device.incoming_packets.push_back(packet);
+                }
             }
 
             match self.iface.poll(Instant::now(), &mut self.device, &mut self.sockets) {
                 smoltcp::iface::PollResult::None => (),
                 smoltcp::iface::PollResult::SocketStateChanged => {
-                    error!("TODO: socket state changed - {} sockets", self.sockets.iter().count());
                     self.dhcp.update(&mut self.sockets);
 
                     self.update_backing_sockets();

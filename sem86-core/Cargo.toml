@@ -44,7 +44,7 @@ nix = { version = "0.30.1", features = ["mman"] }
 inkwell = { version = "0.7.0", features = [ "llvm20-1" ] }
 thin-vec = "0.2.14"
 typetag = "0.2.21"
-smoltcp = { version = "0.12.0", path = "../../smoltcp" }
+smoltcp = "0.12.0"
 mio = { version = "1.0.2", features = ["os-poll", "net"] }
 slab = "0.4"
 buffer-redux = { version = "1.0.2", features = ["slice-deque"]}
