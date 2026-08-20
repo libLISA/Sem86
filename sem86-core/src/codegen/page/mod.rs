@@ -63,6 +63,7 @@ impl<'tag> PageCode<'tag> {
         bump.alloc(&result.object)
             .sorted_by_key(|(name, _)| name.clone())
             .map(move |(name, ptr)| {
+                trace!("Mapping function {name:?}");
                 (
                     name,
                     Self {
