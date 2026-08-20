@@ -92,6 +92,45 @@ fn bench_empty(c: &mut Criterion) {
         let mut a = 0;
         bencher.iter(|| black_box(increment_fn(&mut a)))
     });
+
+    c.bench_function("movs_baseline", |bencher: &mut criterion::Bencher<'_>| {
+        // Benchmarks a native memory copy equivalent to the `full-system-benches/movs_copy.s` benchmark.
+        let buf1 = vec![0xCCu8; 0x40000];
+        let mut buf2 = vec![0u8; 0x40000];
+        bencher.iter_custom(|mut num| {
+            let start = Instant::now();
+
+            while num > 0 {
+                let len = (num as usize).min(buf1.len());
+                black_box(&mut buf2[..len]).copy_from_slice(black_box(&buf1[..len]));
+                num -= len as u64;
+            }
+
+            start.elapsed()
+        });
+    });
+
+    c.bench_function("push_pop_prelude_overhead", |bencher: &mut criterion::Bencher<'_>| {
+        // Measures the stack push/pop overhead of a typical JITed instruction.
+        bencher.iter(|| unsafe {
+            asm! {
+                "push rbp",
+                "push r15",
+                "push r14",
+                "push r13",
+                "push r12",
+                "push rbx",
+                "nop",
+                "pop rbx",
+                "pop r12",
+                "pop r13",
+                "pop r14",
+                "pop r15",
+                "pop rbp",
+                options(preserves_flags),
+            }
+        });
+    });
 }
 
 fn bench_interrupt(c: &mut Criterion) {
