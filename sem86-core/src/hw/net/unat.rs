@@ -396,7 +396,6 @@ impl<F: FnMut()> Runner<F> {
             while let Ok(packet) = self.tx_receiver.try_recv() {
                 self.inspect_packet_for_nat(&packet);
 
-                let mut drop_packet = false;
                 if let Ok(eth) = EthernetFrame::new_checked(packet.data())
                     && let EthernetProtocol::Arp = eth.ethertype()
                     && let Ok(arp) = smoltcp::wire::ArpPacket::new_checked(eth.payload())

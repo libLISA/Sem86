@@ -529,41 +529,44 @@ impl<'ctx> InkwellBackend<'ctx> {
             })
             .collect::<Vec<_>>();
 
-
-        let noalias = self.context.create_enum_attribute(Attribute::get_named_enum_kind_id("noalias"), 0);
-        let nocapture = self.context.create_enum_attribute(Attribute::get_named_enum_kind_id("nocapture"), 0);
-        let wrapper_functions = blocks_with_functions.iter()
+        let noalias = self
+            .context
+            .create_enum_attribute(Attribute::get_named_enum_kind_id("noalias"), 0);
+        let nocapture = self
+            .context
+            .create_enum_attribute(Attribute::get_named_enum_kind_id("nocapture"), 0);
+        let _wrapper_functions = blocks_with_functions
+            .iter()
             .map(|(block, inner_function)| {
-                let ptr_ty = self.context.ptr_type(AddressSpace::default());
-                let fn_type = self.context.i64_type().fn_type(&[ptr_ty.into()] , false);
-                let linkage = if block.export {
-                    None
+                if block.export {
+                    let ptr_ty = self.context.ptr_type(AddressSpace::default());
+                    let fn_type = self.context.i64_type().fn_type(&[ptr_ty.into()], false);
+                    let name = format!("inkwell_jit_pageblock_{:04X}", block.id);
+                    debug!("Creating external wrapper: {name}");
+                    let function = module.add_function(&name, fn_type, None);
+
+                    function.add_attribute(AttributeLoc::Param(0), noalias);
+                    function.add_attribute(AttributeLoc::Param(0), nocapture);
+
+                    let entry = self.context.append_basic_block(function, "entry");
+                    let builder = self.context.create_builder();
+                    builder.position_at_end(entry);
+
+                    // function params
+                    let param_emulator = function.get_nth_param(0).unwrap().into_pointer_value();
+                    let call = builder
+                        .build_call(*inner_function, &[param_emulator.into()], "next_res")
+                        .unwrap();
+                    call.set_call_convention(PRESERVE_NONE_CC);
+                    call.set_tail_call(true);
+                    builder
+                        .build_return(Some(&call.try_as_basic_value().basic().unwrap().into_int_value()))
+                        .unwrap();
+
+                    Some(function)
                 } else {
-                    Some(Linkage::Private)
-                };
-                let name = format!("inkwell_jit_pageblock_{:04X}", block.id);
-                debug!("Creating external wrapper: {name}");
-                let function = module.add_function(&name, fn_type, linkage);
-
-                function.add_attribute(AttributeLoc::Param(0), noalias);
-                function.add_attribute(AttributeLoc::Param(0), nocapture);
-
-                let entry = self.context.append_basic_block(function, "entry");
-                let builder = self.context.create_builder();
-                builder.position_at_end(entry);
-                
-                // function params
-                let param_emulator = function.get_nth_param(0).unwrap().into_pointer_value();
-                let call = builder
-                    .build_call(*inner_function, &[param_emulator.into()], "next_res")
-                    .unwrap();
-                call.set_call_convention(PRESERVE_NONE_CC);
-                call.set_tail_call(true);
-                builder
-                    .build_return(Some(&call.try_as_basic_value().basic().unwrap().into_int_value()))
-                    .unwrap();
-
-                function
+                    None
+                }
             })
             .collect::<Vec<_>>();
 
@@ -2250,7 +2253,7 @@ impl<'ctx, 'r> FunctionGenerator<'ctx, 'r> {
                                         .builder
                                         .build_call(function, &[param_emulator.into()], "next_res")
                                         .unwrap();
-                                        call.set_call_convention(PRESERVE_NONE_CC);
+                                    call.set_call_convention(PRESERVE_NONE_CC);
                                     call.set_tail_call(true);
                                     call.set_tail_call_kind(LLVMTailCallKind::LLVMTailCallKindMustTail);
                                     self.builder

@@ -7,12 +7,10 @@ use bitcode::{Decode, Encode};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::arch::{Arch, Register};
+use crate::arch::Arch;
 use crate::encoding::UnsizedParLoc;
 use crate::encoding::bitpattern::{FlowInputLocation, FlowOutputLocation, FlowValueLocation};
 use crate::instr::Instruction;
-use crate::semantics::Computation;
-use crate::utils::bitmap::Bitmap;
 
 mod accesses;
 mod address_computation;

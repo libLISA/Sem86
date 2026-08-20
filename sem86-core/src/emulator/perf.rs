@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 use std::fmt::Display;
-use std::sync::mpsc::{Sender, channel};
-use std::sync::{Arc, LazyLock, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{Sender, channel};
+use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
 
 use log::{debug, info, trace};
@@ -53,7 +53,7 @@ pub struct PerformanceMonitor {
 /// Channel over which `Arc<State>` can be sent.
 /// Once sent, `should_print` will be set to true every 5 seconds,
 /// until `running` is set to false.
-/// 
+///
 /// This single background thread is responsible for ticking all
 /// running timers in the process.
 /// This avoids the overhead of thread spawning in `PerformanceMonitor::new`.
@@ -88,7 +88,7 @@ impl PerformanceMonitor {
             should_print: AtomicBool::new(false),
         });
 
-        TIMER_CHANNEL.send(state.clone());
+        TIMER_CHANNEL.send(state.clone()).unwrap();
 
         Self {
             last_k: k,

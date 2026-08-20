@@ -5,7 +5,6 @@ use std::fmt::{Debug, Display};
 
 use arrayvec::ArrayVec;
 use bitcode::{Decode, Encode};
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::arch::{Arch, CpuState};
