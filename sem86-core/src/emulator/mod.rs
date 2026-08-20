@@ -628,16 +628,16 @@ impl<'mem, 'tag> EmulatorContextInner<'mem, 'tag> {
                     let hook = (Decide::get(CondIf::<STOP_AT_EXACT, _, _>(|| StopAt::new(num.unwrap()), || ())), hook);
 
                     #[cfg(feature = "synchronous-clock")]
-                    let hook = (Decide::get(CondIf::<SYNCHRONOUS_CLOCK, _, _>(move || SyncClock::new(clock.unwrap()), || ())), hook);
+                    let hook = (Decide::get(CondIf::<SYNCHRONOUS_CLOCK, _, _>(move || hooks::SyncClock::new(clock.unwrap()), || ())), hook);
                     let hook = (Decide::get(CondIf::<{CHECK_TRACE || HAS_PRINT_AT}, _, _>(|| TrackPath, || ())), hook);
                     let hook = (Decide::get(CondIf::<CHECK_TRACE, _, _>(CheckTrace::new, || ())), hook);
                     let hook = (Decide::get(CondIf::<HAS_PRINT_AT, _, _>(|| Printer::new(self), || ())), hook);
                     #[cfg(feature = "profiler")]
-                    let hook = (Decide::get(CondIf::<PROFILE, _, _>(|| EnableProfiler, || ())), hook);
+                    let hook = (Decide::get(CondIf::<PROFILE, _, _>(|| hooks::EnableProfiler, || ())), hook);
                     #[cfg(feature = "mem-trace")]
-                    let hook = (Decide::get(CondIf::<HAS_MEM_TRACE, _, _>(|| MemTrace::new_lin(self.trace_mem_at.unwrap()), || ())), hook);
+                    let hook = (Decide::get(CondIf::<HAS_MEM_TRACE, _, _>(|| hooks::MemTrace::new_lin(self.trace_mem_at.unwrap()), || ())), hook);
                     #[cfg(feature = "mem-trace")]
-                    let hook = (Decide::get(CondIf::<HAS_PMEM_TRACE, _, _>(|| MemTrace::new_phys(self.trace_pmem_at.unwrap()), || ())), hook);
+                    let hook = (Decide::get(CondIf::<HAS_PMEM_TRACE, _, _>(|| hooks::MemTrace::new_phys(self.trace_pmem_at.unwrap()), || ())), hook);
                     // // // let hook = (DirtyTracker { num_dirty_before: 0 }, hook);
                     // // let hook = (Decide::get(CondIf::<VERIFY_ICACHE_CONSISTENCY, _, _>(CheckInstructionCacheConsistency, ())), hook);
 
