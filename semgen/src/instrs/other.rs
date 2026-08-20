@@ -19,18 +19,16 @@ pub fn gp_in_vm_ioplnot3_or(ops: Vec<Cmd<Intel386>>, ctx: &mut Context) -> Vec<C
     ops! {
         #[context(ctx)]
 
-        // temp0 is zero if IOPL=3
-        let temp0 = xor((GpReg::Iopl, LOW_BYTE), 3);
-        // This makes temp1 zero if VM = 0 or (VM = 1 and IOPL == 3)
+        // Must throw exception if in VM and IOPL != 3
         let vm = FLAG_VM;
-        let temp1 = ite(vm, 0, temp0);
-
-
-        if is_zero(temp1) {
-            ..ops;
-        } else {
-            ..invoke_gp();
+        if !is_zero(vm) {
+            let iopl_is_3 = cmp_eq((GpReg::Iopl, LOW_BYTE), 3);
+            if is_zero(iopl_is_3) {
+                ..invoke_gp();
+            }
         }
+
+        ..ops;
     }
 }
 
@@ -95,28 +93,27 @@ pub fn builder(_config: Config) -> impl Builder<Output = SemSpec<Intel386>> {
                 commands: ops! {
                     #[context(ctx)]
 
-                    // temp0 is zero if IOPL=3
-                    let temp0 = xor((GpReg::Iopl, LOW_BYTE), 3);
-                    // This makes temp1 zero if VM = 0 or (VM = 1 and IOPL == 3)
+                    // Must throw exception if in VM and IOPL != 3
                     let vm = FLAG_VM;
-                    let temp1 = ite(vm, 0, temp0);
-
-                    if is_zero(temp1) {
-                        ..Cmd::Handler {
-                            id: HANDLER_INT,
-                            args: vec![
-                                n,
-                                Val::Loc(ParLoc { loc: UnsizedParLoc::InstrLen, size: LOW_BYTE }),
-                            ],
-                        };
-                    } else {
-                        let temp0 = shl(n, 3);
-                        let temp0 = or(temp0, 2);
-                        ..Cmd::Exception {
-                            exception: Exception::GeneralProtectionFault(0),
-                            code: temp0,
-                        };
+                    if !is_zero(vm) {
+                        let iopl_is_3 = cmp_eq((GpReg::Iopl, LOW_BYTE), 3);
+                        if is_zero(iopl_is_3) {
+                            let exception_code = shl(n, 3);
+                            let exception_code = or(exception_code, 2);
+                            ..Cmd::Exception {
+                                exception: Exception::GeneralProtectionFault(0),
+                                code: exception_code,
+                            };
+                        }
                     }
+
+                    ..Cmd::Handler {
+                        id: HANDLER_INT,
+                        args: vec![
+                            n,
+                            Val::Loc(ParLoc { loc: UnsizedParLoc::InstrLen, size: LOW_BYTE }),
+                        ],
+                    };
                 },
                 // TODO: Natively recognise INT as a special operation
                 jump: Jump::Far,
