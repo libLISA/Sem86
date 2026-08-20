@@ -1640,6 +1640,46 @@ impl MemoryData for u64 {
     }
 }
 
+
+impl MemoryData for u128 {
+    const NUM_BYTES: usize = 16;
+    const MAX: Self = u128::MAX;
+
+    fn from_bytes(bytes: &[u8]) -> Self {
+        u128::from_le_bytes(bytes.try_into().unwrap())
+    }
+
+    fn to_bytes(self) -> impl AsRef<[u8]> {
+        u128::to_le_bytes(self)
+    }
+
+    fn from_u32_with_offset(_offset: impl Into<u32>, _val: u32) -> Self {
+        error!("TODO: 128-bit read of 32-bit value must be split into two reads");
+        Self::MAX
+    }
+
+    fn into_u32_exact(self) -> Option<u32> {
+        None
+    }
+
+    fn from_u16_with_offset(offset: impl Into<u16>, val: u16) -> Self {
+        let shift = offset.into() * 8;
+        (val >> shift) as u128
+    }
+
+    fn into_u16_exact(self) -> Option<u16> {
+        None
+    }
+
+    unsafe fn read_from_unaligned_pointer(ptr: *mut u8) -> Self {
+        unsafe { (ptr as *mut u128).read_unaligned() }
+    }
+
+    unsafe fn write_to_unaligned_pointer(self, ptr: *mut u8) {
+        unsafe { (ptr as *mut u128).write_unaligned(self) }
+    }
+}
+
 impl Mmio for () {
     fn read_mem<D: MemoryData>(&mut self, _id: MmioId, _address: u32) -> D {
         D::MAX

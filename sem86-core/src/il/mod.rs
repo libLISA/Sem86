@@ -2200,6 +2200,9 @@ impl MemArea {
                     mem.read::<u64>(self.start_addr().as_u64() as u32, userspace, mmio)? as u128
                         | ((mem.read::<u16>(self.start_addr().as_u64() as u32 + 8, userspace, mmio)? as u128) << 64)
                 },
+                16 => {
+                    mem.read::<u128>(self.start_addr().as_u64() as u32, userspace, mmio)? as u128
+                }
                 n => panic!("Cannot read {n} bytes into u128"),
             })
         }
@@ -2275,6 +2278,9 @@ impl MemArea {
                     mem.write(self.start_addr().as_u64() as u32, userspace, val as u64, mmio)?;
                     mem.write(self.start_addr().as_u64() as u32 + 8, userspace, (val >> 64) as u16, mmio)?;
                 },
+                16 => {
+                    mem.write(self.start_addr().as_u64() as u32, userspace, val, mmio)?;
+                }
                 n => panic!("Cannot read {n} bytes into u64"),
             }
         }

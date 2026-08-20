@@ -132,6 +132,10 @@ impl Context {
         self.memory_size_override = Some(size)
     }
 
+    pub fn last_access(&mut self) -> &MemoryAccess<Intel386> {
+        self.accesses.last().unwrap()
+    }
+
     pub fn pop_access(&mut self) -> MemoryAccess<Intel386> {
         self.accesses.pop().unwrap()
     }

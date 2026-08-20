@@ -1,6 +1,7 @@
 use liblisa::encoding::dataflows::{AccessKind, Inputs, MemoryAccess, MemorySizeRange, ParameterizedComputation};
 use liblisa::encoding::{ParLoc, UnsizedParLoc};
 use liblisa::state::Size;
+use liblisa::utils::bitmask_u64;
 use sem86_core::arch::intel386::{GpReg, Intel386};
 use sem86_core::il::{BinOp, Cmd, Jump, Op, Val};
 
@@ -9,7 +10,7 @@ use crate::builder::*;
 use crate::context::{BuildFromContext, Context};
 use crate::dsl::*;
 use crate::instrs::arith::{compute_cf, compute_pf, compute_sf, compute_sub_of, compute_zf};
-use crate::instrs::{DWORD, FLAG_AF, FLAG_DF, FLAG_ZF};
+use crate::instrs::{DWORD, EffectiveAddress, FLAG_AF, FLAG_DF, FLAG_ZF};
 use crate::{Config, encoding, encoding_group, ops};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -112,7 +113,7 @@ pub fn builder(_config: Config) -> impl Builder<Output = SemSpec<Intel386>> {
             1, 0, 1, 0, 1, 0, 1, W,
         ] = (rep, Kind::Stos),
         map |(repeat_when_empty, kind): (Option<bool>, Kind)| BuildFromContext::new(move |ctx| {
-            let inputs = Inputs::unsorted(vec![
+            let src_inputs = Inputs::unsorted(vec![
                 ctx.segment_override().unwrap_or(ParLoc { loc: UnsizedParLoc::Reg(GpReg::DsBase.into()), size: DWORD }),
                 ParLoc { loc: UnsizedParLoc::Reg(GpReg::Si.into()), size: Size::from_bytes(ctx.addr_size()) },
             ]);
@@ -123,7 +124,7 @@ pub fn builder(_config: Config) -> impl Builder<Output = SemSpec<Intel386>> {
                     size: MemorySizeRange::new(ctx.op_size() as u64, ctx.op_size() as u64),
                     calculation: ParameterizedComputation::Calculation(ctx.segment_calculation().clone()),
                     alignment: 1,
-                    inputs,
+                    inputs: src_inputs.clone(),
                 }),
             };
 
@@ -146,16 +147,90 @@ pub fn builder(_config: Config) -> impl Builder<Output = SemSpec<Intel386>> {
 
             let size = Size::from_bytes(ctx.addr_size());
             match kind {
-                Kind::Movs => handle_rep(rep, ops! {
-                    #[context(ctx)]
-                    ..PerformMemoryReads([ src ]);
-                    dst := src;
-                    ..PerformMemoryWrites([ dst ]);
+                Kind::Movs => if rep {
+                    let lower_bits_16b = 4;
+                    let access_size_16b = 1 << lower_bits_16b;
+                    let src_16b = ctx.add_access(MemoryAccess {
+                        kind: AccessKind::InputOutput,
+                        size: MemorySizeRange::single(access_size_16b),
+                        calculation: ParameterizedComputation::Calculation(ctx.segment_calculation().clone()),
+                        alignment: 1,
+                        inputs: src_inputs,
+                    });
+                    let src_16b_access = ctx.last_access().clone();
+                    let dst_16b = ctx.add_access(MemoryAccess {
+                        kind: AccessKind::InputOutput,
+                        size: MemorySizeRange::single(access_size_16b),
+                        calculation: ParameterizedComputation::Calculation(ctx.segment_calculation().clone()),
+                        alignment: 1,
+                        inputs: Inputs::unsorted(vec![
+                            ParLoc { loc: UnsizedParLoc::Reg(GpReg::EsBase.into()), size: DWORD },
+                            ParLoc { loc: UnsizedParLoc::Reg(GpReg::Di.into()), size: Size::from_bytes(ctx.addr_size()) },
+                        ]),
+                    });
+                    let dst_16b_access = ctx.last_access().clone();
+                    let num_for_16b = access_size_16b / ctx.op_size() as u64;
 
-                    let step = ite(FLAG_DF, ctx.op_size() as u64, (ctx.op_size() as u64).wrapping_neg());
-                    (GpReg::Di, size) += step;
-                    (GpReg::Si, size) += step;
-                }, ctx),
+                    let cx_size = Size::from_bytes(ctx.addr_size());
+                    SemSpec {
+                        commands: ops! {
+                            #[context(ctx)]
+                            let should_repeat = (GpReg::Cx, cx_size);
+                            if !is_zero(should_repeat) {
+                                let must_do_single = cmp_lt((GpReg::Cx, cx_size), num_for_16b);
+                                let src_addr = EffectiveAddress(&src_16b_access);
+                                let dst_addr = EffectiveAddress(&dst_16b_access);
+                                let src_lower_bits = and(src_addr, bitmask_u64(lower_bits_16b));
+                                let dst_lower_bits = and(dst_addr, bitmask_u64(lower_bits_16b));
+                                let merged_lower_bits = or(src_lower_bits, dst_lower_bits);
+                                let must_do_single = ite(merged_lower_bits, must_do_single, 1);
+
+                                // For now we do not handle decrementing memory accesses.
+                                let must_do_single = or(must_do_single, FLAG_DF);
+
+                                if !is_zero(must_do_single) {
+                                    (GpReg::Cx, cx_size) -= 1;
+                                    FLAG_RF := ite((GpReg::Cx, cx_size), FLAG_RF, 1);
+
+                                    ..PerformMemoryReads([ src ]);
+                                    dst := src;
+                                    ..PerformMemoryWrites([ dst ]);
+
+                                    let step = ite(FLAG_DF, ctx.op_size() as u64, (ctx.op_size() as u64).wrapping_neg());
+                                    (GpReg::Di, size) += step;
+                                    (GpReg::Si, size) += step;
+                                } else {
+                                    (GpReg::Cx, cx_size) -= num_for_16b;
+                                    FLAG_RF := ite((GpReg::Cx, cx_size), FLAG_RF, 1);
+
+                                    ..PerformMemoryReads([ src_16b ]);
+                                    dst_16b := src_16b;
+                                    ..PerformMemoryWrites([ dst_16b ]);
+
+                                    (GpReg::Di, size) += access_size_16b;
+                                    (GpReg::Si, size) += access_size_16b;
+                                }
+                            }
+                        },
+                        manual_memory_accesses: true,
+                        // Repeat as long as CX is non-zero
+                        jump: Jump::Repeat {
+                            condition: (GpReg::Cx, cx_size).into(),
+                        },
+                        ..Default::default()
+                    }
+                } else {
+                    handle_rep(rep, ops! {
+                        #[context(ctx)]
+                        ..PerformMemoryReads([ src ]);
+                        dst := src;
+                        ..PerformMemoryWrites([ dst ]);
+
+                        let step = ite(FLAG_DF, ctx.op_size() as u64, (ctx.op_size() as u64).wrapping_neg());
+                        (GpReg::Di, size) += step;
+                        (GpReg::Si, size) += step;
+                    }, ctx)
+                },
                 Kind::Cmps => handle_repz(rep, repeat_when_empty, ops! {
                     #[context(ctx)]
 
