@@ -8,6 +8,7 @@ synchronous-clock = []
 mem-trace = []
 profiler = []
 default = []
+no-log = ["log/max_level_off"]
 
 [dependencies]
 liblisa = { path = "../liblisa", default-features = false, features = ["mem_dbg"] }
