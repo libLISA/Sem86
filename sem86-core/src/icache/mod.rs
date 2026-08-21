@@ -303,9 +303,11 @@ impl<'tag, 'sem> InstructionCache<'tag> {
                 self.mapping.frame_is_mapped_as(phys_frame_index, expected_page),
                 "page mapping of {expected_page} (phys: {phys_frame_index}) is current, but mapping change was not propagated"
             );
-        }
 
-        false
+            debug_assert!(!self.inner.phys_cache[phys_frame_index].checks_needed.needs_mapping_check());
+
+            false
+        }
     }
 
     #[inline(always)]
@@ -566,6 +568,7 @@ impl<'tag, 'sem> InstructionCache<'tag> {
         let pc = LinAddr::new(cs_base.wrapping_add(ip));
         progress(LookupProgress::VerifyPageMapping);
         let checking_flags = self.inner.frame_checking_flags(phys_frame_index);
+        trace!("Checking frame {phys_frame_index} for {checking_flags:?}");
         if checking_flags.needs_only_successor_page_mapping_check() {
             // Force a check of the next page so the flag will be cleared
             for successor in self.mapping.lin_successors(phys_frame_index).collect::<ArrayVec<_, 8>>() {

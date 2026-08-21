@@ -684,7 +684,7 @@ impl<'mem, 'tag> EmulatorContextInner<'mem, 'tag> {
                         self.profiler.at::<PROFILE>(&EmulatorState::EnterInterrupt);
                         is_entry = true;
                         if matches!(int, Interrupt::Exception(Exception::InvalidOpcode)) {
-                            debug!("Encountered InvalidOpcode exception at k={}", DisplayK(self.emulator.ctx.k));
+                            debug!("Encountered InvalidOpcode exception at k={} with EIP={:X}", DisplayK(self.emulator.ctx.k), self.emulator.cpu.gpreg(GpReg::Ip));
                         }
 
                         if let Interrupt::SoftwareInterrupt {

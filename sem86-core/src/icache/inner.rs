@@ -13,6 +13,7 @@ use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256Plus;
 use sem86_arch::addr::{LinAddr, LinPageIndex, PhysAddr, PhysFrameIndex};
 use sem86_arch::mem::{MarkDirtyAdvice, Mem32};
+use serde::{Deserialize, Serialize};
 use thin_vec::ThinVec;
 
 use super::debug::FrameSnapshot;
@@ -683,6 +684,7 @@ impl<'tag> InnerCache<'tag> {
             frame.update_counter_check_flags(self.checking_flags_cache.get_mut(phys_frame_index));
         }
 
+        assert_eq!(frame.jit_page_in != 0, frame.checks_needed.needs_counters_check(), "counters_active should be false when jit_page_in is 0");
         // TODO:
         // debug_assert!(frame.has_chains || frame.cleaning_delay.is_some() || frame.make_chains_in > 1, "frame {phys_frame_index} should either have chains, or have them pending: has_chains={}, dirty={}, make_chains_in={}", frame.has_chains, frame.cleaning_delay.is_some(), frame.make_chains_in);
 
@@ -708,6 +710,7 @@ impl<'tag> InnerCache<'tag> {
         }
 
         frame.jit_page_in = 0;
+        frame.update_counter_check_flags(self.checking_flags_cache.get_mut(phys_frame_index));
 
         self.jits_pending.swap_remove(&phys_frame_index);
 
@@ -818,8 +821,11 @@ impl<'tag> InnerCache<'tag> {
         self.phys_cache
             .0
             .iter()
-            .map(|frame| FrameSnapshot {
+            .zip(self.checking_flags_cache.0.iter())
+            .map(|(frame, &any_checking_flags)| FrameSnapshot {
                 is_dirty: frame.cleaning_delay.is_some(),
+                any_checking_flags,
+                checks_needed: frame.checks_needed,
                 page_jit_pending: frame.jit_page_in != 0,
             })
             .collect()
@@ -835,7 +841,10 @@ impl<'tag> InnerCache<'tag> {
             Err(insert_index) => {
                 assert!(
                     !memory.phys_frame_is_dirty(phys_frame_index.start_address().as_u32() as u64)
-                        || frame.cleaning_delay.is_some()
+                        || frame.cleaning_delay.is_some(),
+                    "dirty={}, cleaning_delay={:?}",
+                    memory.phys_frame_is_dirty(phys_frame_index.start_address().as_u32() as u64),
+                    frame.cleaning_delay,
                 );
                 // If we have nothing cached, immediately mark the frame clean if it is dirty.
                 if frame.cleaning_delay.is_some() && frame.instr_map.is_empty() {
@@ -1115,8 +1124,8 @@ impl FrameInstr<'_> {
     }
 }
 
-#[derive(Copy, Clone, Default)]
-pub(super) struct CheckingFlags {
+#[derive(Copy, Clone, Default, Serialize, Deserialize)]
+pub(crate) struct CheckingFlags {
     value: u8,
 }
 

@@ -28,32 +28,8 @@ fn run_bench(
     c: &mut Criterion, name: &str, addr: u32, bytes: &[u8], encodings: Arc<PackedInstrSem>, initial_state: State,
     use_pagejit: bool,
 ) {
-    let shm = Arc::new(Shm::new("bench", 64 << 20)); // 64MiB
+    let shm = Arc::new(Shm::new("bench", 256 << 20)); // 256MiB
     let mem = Arc::new(Mem32::new(shm.clone()));
-    for addr in (0..=u32::MAX).step_by(shm.len() as usize) {
-        mem.map_physical_memory_to_shm(addr as u64..addr as u64 + shm.len(), shm.clone(), None, 0, true);
-    }
-
-    // Timer IDT entry so interrupts don't crash
-    let timer_ide = GateDescriptor::new(0, 0x0008, GateType::InterruptGate32, u2::new(0), true, 0xfafb);
-    mem.write_slice(0xfafa0040, &u64::from(timer_ide).to_le_bytes(), false, &mut ())
-        .unwrap();
-    mem.write_slice(
-        0xfafb0000,
-        &[
-            0xcf, // iret
-        ],
-        false,
-        &mut (),
-    )
-    .unwrap();
-
-    // Default GDT entries
-    mem.write_slice(0xfaf90000, &0u64.to_le_bytes(), false, &mut ()).unwrap();
-    mem.write_slice(0xfaf90008, &0x00CF9A000000FFFFu64.to_le_bytes(), false, &mut ())
-        .unwrap();
-    mem.write_slice(0xfaf90010, &0x00CF92000000FFFFu64.to_le_bytes(), false, &mut ())
-        .unwrap();
 
     make_guard!(guard);
     let cga_mode_channel = channel();
@@ -79,6 +55,34 @@ fn run_bench(
         },
         guard,
     );
+    mem.set_a20_line(true);
+
+    for addr in (0..=u32::MAX).step_by(shm.len() as usize) {
+        mem.map_physical_memory_to_shm(addr as u64..addr as u64 + shm.len(), shm.clone(), None, 0, true);
+    }
+
+    // Timer IDT entry so interrupts don't crash
+    let timer_ide = GateDescriptor::new(0, 0x0008, GateType::InterruptGate32, u2::new(0), true, 0xfafb);
+    mem.write_slice(0xfafa0040, &u64::from(timer_ide).to_le_bytes(), false, &mut ())
+        .unwrap();
+    mem.write_slice(
+        0xfafb0000,
+        &[
+            0xcf, // iret
+        ],
+        false,
+        &mut (),
+    )
+    .unwrap();
+
+    // Default GDT entries
+    mem.write_slice(0xfaf90000, &0u64.to_le_bytes(), false, &mut ()).unwrap();
+    mem.write_slice(0xfaf90008, &0x00CF9A000000FFFFu64.to_le_bytes(), false, &mut ())
+        .unwrap();
+    mem.write_slice(0xfaf90010, &0x00CF92000000FFFFu64.to_le_bytes(), false, &mut ())
+        .unwrap();
+
+    mem.clean_all_phys_frames();
     emulator_ctx.set_pagejit_enabled(use_pagejit);
 
     let mut warmed_up = false;
@@ -165,7 +169,7 @@ fn run_benches(c: &mut Criterion) {
         }
 
         s.set_gpreg(GpReg::Cr0, 1);
-        s.set_gpreg(GpReg::Ip, 0x1000);
+        s.set_gpreg(GpReg::Ip, 0x10_0000);
         s.set_flag(Intel386Flag::If, true);
         s.set_gpreg(GpReg::IdtBase, 0xfafa0000);
         s.set_gpreg(GpReg::IdtLimit, 0x47);
@@ -185,7 +189,7 @@ fn run_benches(c: &mut Criterion) {
             run_bench(
                 c,
                 &name,
-                0x1000,
+                0x10_0000,
                 &compiled,
                 instr_semantics.clone(),
                 initial_state.clone(),
